@@ -115,6 +115,24 @@ orifice-model estimate. Calibrate it on a real print:
    for corrections from about 26 to 36 mm (the estimate is 31); outside
    that, adjust `row_drop` and rerun `luam layout.lua`.
 
+## Jet speed per chamber
+
+All three windways share one blowing pressure, but a lower note wants a
+slower jet. Pipe organs solve the same problem by narrowing each pipe's
+foot hole ("toe regulation"). Here the two lower chambers get a narrow
+inlet slit at the lips that opens abruptly into the full-width windway;
+the expansion loses some pressure, so the jet comes out slower.
+
+- `jet_match = 1` aims for jet speed in proportion to pitch: G open
+  (4.8 mm), E 2.9 mm (84 % jet speed), C 2.3 mm (67 %).
+- Lower it toward 0 if the low chambers now sound weak or breathy; raise
+  a single chamber with its own `inlet_width` (mm).
+- Only the head changes; the body and its tuning stay valid. A slower jet
+  can flatten a note by a few cents, which calibration picks up.
+- If this isn't enough, the next tool is the cut-up (`window_length`): a
+  longer window suits a slower jet. That changes the window correction,
+  so it needs a new body too.
+
 ## Tuning slide
 
 The head and body meet at a slip joint across the three straight drops

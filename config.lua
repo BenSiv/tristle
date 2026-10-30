@@ -32,6 +32,17 @@ config.beak_web = 1.0          -- wall between windways at the lips
 config.tip_width = 26.0        -- flat mouth end (the head prints standing on it)
 config.tip_depth = 10.0
 
+-- Jet speed per chamber. All three windways share one blowing pressure, but
+-- a lower note wants a slower jet (as organ pipes on one wind chest do).
+-- Each lower chamber gets a narrow inlet slit at the lips that opens
+-- abruptly into its full-width windway; the expansion loses pressure, so
+-- the jet leaves the windway slower. jet_match = 1 aims for jet speed in
+-- proportion to pitch, 0 leaves every inlet full width. A chamber's own
+-- inlet_width (mm) overrides the computed one. Head-only change: the body
+-- and its tuning are unaffected.
+config.jet_match = 1.0
+config.inlet_length = 3.0      -- length of the narrow slit before it opens out
+
 -- Finger grid -----------------------------------------------------------------
 -- Two columns (left hand, right hand) x three rows (index, middle, ring),
 -- one chamber per row, its tube running left -> right across the front:

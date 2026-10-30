@@ -32,6 +32,7 @@ path = require("path")
 cfg = config
 routes = layout.solve(cfg)
 design = tuning.design(cfg)
+inlets = tuning.inlets(cfg)
 
 FN = 48
 r = cfg.bore / 2
@@ -159,10 +160,15 @@ function air(with_holes)
         elseif x > 0 then
             lip_x = lip_pitch
         end
+        inlet_top = head_top - cfg.inlet_length
         table.insert(cuts, cad.hull({
             box(x - ww / 2, x + ww / 2, r - wh / 2, r + wh / 2, block_top - 0.01, block_top),
-            box(lip_x - ww / 2, lip_x + ww / 2, r - wh / 2, r + wh / 2, head_top, head_top + 1),
+            box(lip_x - ww / 2, lip_x + ww / 2, r - wh / 2, r + wh / 2, inlet_top - 0.01, inlet_top),
         }))
+        -- narrow inlet slit at the lips: opens abruptly into the windway,
+        -- slowing this chamber's jet (see config.jet_match)
+        wi = inlets[k].width
+        table.insert(cuts, box(lip_x - wi / 2, lip_x + wi / 2, r - wh / 2, r + wh / 2, inlet_top - 0.02, head_top + 1))
     end
     if with_holes == true then
         for _, c in ipairs(finger_holes()) do

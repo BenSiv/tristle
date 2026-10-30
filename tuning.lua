@@ -260,6 +260,32 @@ function tuning.design(cfg)
     return result
 end
 
+-- Inlet slit per chamber. A slit of width w opening abruptly into a
+-- windway of width W (same height) loses the Borda-Carnot head
+-- (v_slit - v_jet)^2 / 2, so p = rho/2 * v_jet^2 * (1 + (W/w - 1)^2):
+-- the jet slows by 1 / sqrt(1 + (W/w - 1)^2) against an open slit. The
+-- highest chamber stays open; the others are narrowed toward
+-- speed ratio (f / f_highest) ^ jet_match.
+function tuning.inlets(cfg)
+    f_top = 0
+    for _, ch in ipairs(cfg.chambers) do
+        f_top = math.max(f_top, tuning.note_freq(cfg, tuning.midi(ch.root)))
+    end
+    out = {}
+    for _, ch in ipairs(cfg.chambers) do
+        f = tuning.note_freq(cfg, tuning.midi(ch.root))
+        ratio = (f / f_top) ^ cfg.jet_match
+        w = cfg.windway_width / (1 + math.sqrt(1 / (ratio * ratio) - 1))
+        if ch.inlet_width != nil then
+            w = ch.inlet_width
+        end
+        a = cfg.windway_width / w
+        speed = 1 / math.sqrt(1 + (a - 1) * (a - 1))
+        table.insert(out, { name = ch.name, width = w, speed = speed })
+    end
+    return out
+end
+
 -- Every chord whose three pitch classes can be voiced one per chamber.
 function tuning.chords(design)
     qualities = {
@@ -356,6 +382,13 @@ function tuning.report(design, cfg)
             first = false
         end
     end
+    add("")
+    parts = {}
+    for _, inl in ipairs(tuning.inlets(cfg)) do
+        table.insert(parts, string.format("%s %.2f mm (jet %.0f %%)", inl.name, inl.width, 100 * inl.speed))
+    end
+    add(string.format("Mouth inlets (windway %.1f mm, jet_match %.2f): %s",
+        cfg.windway_width, cfg.jet_match, table.concat(parts, "   ")))
     add("")
     add("Fingering per chamber (upper hole first): ●● root  ●◐ +1  ●○ +2  ◐○ +3  ○○ +4")
     add("")
