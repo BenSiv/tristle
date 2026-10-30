@@ -269,9 +269,9 @@ function tuning.report(design, cfg)
         add("window correction is an ESTIMATE -- print TRISTLE_VIEW=calibrate and measure (README)")
     end
     add("")
-    add("Lengths are from the labium edge (window edge), down the bore.")
+    add("Lengths are along the tube centreline from the labium edge (window edge).")
     add("")
-    add("chamber  notes (closed..open)        length  hole  finger     pos   from foot  dia (twin: small+large)")
+    add("chamber  notes (closed..open)        length  hole  finger     along tube  to end  dia (twin: small+large)")
     for _, ch in ipairs(design.chambers) do
         notes = {}
         for k = 0, 4 do
@@ -290,7 +290,7 @@ function tuning.report(design, cfg)
             else
                 head = string.format("%-8s %-27s %6s", "", "", "")
             end
-            add(string.format("%s  %-4s  %-9s %6.1f  %7.1f   %s",
+            add(string.format("%s  %-4s  %-9s %7.1f  %7.1f   %s",
                 head, key, h.finger, h.pos, ch.length - h.pos, dia))
             for _, w in ipairs(h.warnings) do
                 add("         WARNING " .. key .. ": " .. w)
@@ -298,19 +298,6 @@ function tuning.report(design, cfg)
             first = false
         end
     end
-    add("")
-    add("Finger spacing down the instrument (hole to hole):")
-    order = {}
-    for _, ch in ipairs(design.chambers) do
-        table.insert(order, { ch.name .. ".h2", ch.h2.pos })
-        table.insert(order, { ch.name .. ".h1", ch.h1.pos })
-    end
-    table.sort(order, function(p, q) return p[2] < q[2] end)
-    gaps = {}
-    for i = 2, #order do
-        table.insert(gaps, string.format("%s->%s %.0f", order[i - 1][1], order[i][1], order[i][2] - order[i - 1][2]))
-    end
-    add("  " .. table.concat(gaps, "   "))
     add("")
     add("Fingering per chamber (upper hole first): ●● root  ●◐ +1  ●○ +2  ◐○ +3  ○○ +4")
     add("")
@@ -344,6 +331,8 @@ end
 -- each chamber's physical length is known, so c/(2f) - length - end corr
 -- is what the window adds. Measure warmed up, at playing breath pressure.
 function tuning.calibrate(cfg, measured)
+    package.loaded["tuning"] = tuning
+    require("layout").solve(cfg)
     design = tuning.design(cfg)
     lines = {}
     sum, n = 0, 0
@@ -376,6 +365,10 @@ if arg != nil and arg[0] != nil and string.match(arg[0], "tuning%.lua$") != nil 
         end
         print(tuning.calibrate(config, measured))
     else
+        -- hole positions come from the tube routing
+        package.loaded["tuning"] = tuning
+        layout = require("layout")
+        layout.solve(config)
         print(tuning.report(tuning.design(config), config))
     end
 end
