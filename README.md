@@ -75,11 +75,13 @@ mirrored.
 | `layout.lua` | tube routing, slack solver, clearance check |
 | `path.lua` | 3D polyline tubes with rounded corners, measured along the centreline |
 | `tristle.lua` | luametry model (head + body, print layout) |
+| `export.sh` | writes each printable part to its own STL in `out/` |
 
 ```bash
 luam tuning.lua                     # lengths, holes, chords
 luam layout.lua                     # routing and clearance report
-luametry run tristle.lua            # out/tristle.stl (print layout)
+./export.sh                         # out/head.stl, out/body.stl, out/body_calibrate.stl, out/assembled.stl
+luametry run tristle.lua            # out/tristle.stl (both parts together)
 TRISTLE_VIEW=assembled luametry run tristle.lua -o out/assembled.stl
 TRISTLE_VIEW=air       luametry run tristle.lua -o out/air.stl
 ```
@@ -104,8 +106,8 @@ The **window correction** (how much longer the fipple makes the pipe
 sound) cannot be predicted well for a fipple. The default is an
 orifice-model estimate. Calibrate it on a real print:
 
-1. `TRISTLE_VIEW=calibrate luametry run tristle.lua -o out/calibrate.stl`
-   gives the head and a body **without finger holes**.
+1. Print `out/head.stl` and `out/body_calibrate.stl` (a body **without
+   finger holes**) from `./export.sh`.
 2. Play it warmed up. Tape over two windways at a time and read each root
    on a tuner.
 3. `luam tuning.lua calibrate C=521.8 E=657.0 G=781.3`

@@ -9,7 +9,9 @@
 -- every other tube run has a pointed (teardrop) roof facing the foot,
 -- which is "up" on the printer.
 --
---   luametry run tristle.lua             -> out/tristle.stl (print layout)
+--   ./export.sh                          -> out/head.stl, out/body.stl, ... (one file per part)
+--   luametry run tristle.lua             -> out/tristle.stl (both parts, print layout)
+--   TRISTLE_PART=head|body ...           one part only, in print orientation
 --   TRISTLE_VIEW=assembled luametry run tristle.lua -o out/assembled.stl
 --   TRISTLE_VIEW=air       ...  just the air inside (bores, windways): shows the coil
 --   TRISTLE_VIEW=calibrate ...  print layout without finger holes; measure
@@ -217,5 +219,11 @@ end
 -- stands on its flat mouth end, the body on its joint face (collar on the
 -- bed); every non-vertical channel then has its pointed roof on top.
 head_print = cad.translate(cad.rotate(head, { 180, 0, 0 }), { 0, 0, head_top })
-body_print = cad.translate(cad.rotate(body, { 180, 0, 0 }), { 0, 70, joint_z })
-return cad.union({ head_print, body_print })
+body_print = cad.translate(cad.rotate(body, { 180, 0, 0 }), { 0, 0, joint_z })
+part = os.getenv("TRISTLE_PART")
+if part == "head" then
+    return head_print
+elseif part == "body" then
+    return body_print
+end
+return cad.union({ head_print, cad.translate(body_print, { 0, 70, 0 }) })
