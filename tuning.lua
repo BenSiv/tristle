@@ -1,5 +1,5 @@
 -- tuning.lua
--- Acoustic design of the tri-whistle: chamber lengths, hole positions and
+-- Acoustic design of the tristle (tri-whistle): chamber lengths, hole positions and
 -- hole diameters, plus the chord/fingering table.
 --
 -- Model (open-open pipe, Benade/Flutomat tone-hole formulas):
@@ -266,7 +266,7 @@ function tuning.report(design, cfg)
     add(string.format("speed of sound %.1f m/s (%.0f C)   window corr %.1f mm   end corr %.1f mm",
         design.c / 1000, cfg.temperature_c, design.window_correction, design.end_correction))
     if cfg.window_correction == nil then
-        add("window correction is an ESTIMATE -- print TRI_WHISTLE_VIEW=calibrate and measure (README)")
+        add("window correction is an ESTIMATE -- print TRISTLE_VIEW=calibrate and measure (README)")
     end
     add("")
     add("Lengths are from the labium edge (window edge), down the bore.")

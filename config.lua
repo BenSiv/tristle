@@ -1,5 +1,5 @@
 -- config.lua
--- Single source of truth for the tri-whistle: acoustics + geometry.
+-- Single source of truth for the tristle (tri-whistle): acoustics + geometry.
 -- All lengths in mm. z = 0 is the labium edge of every chamber; the
 -- instrument points down (-z), the mouthpiece is up (+z), finger holes
 -- and windows face +y.

@@ -1,6 +1,6 @@
-# tri-whistle
+# tristle
 
-A 3D-printable chord whistle: one mouthpiece, three windways, three
+Tristle, short for tri-whistle: a 3D-printable chord whistle: one mouthpiece, three windways, three
 chambers tuned to C5, E5 and G5. Every blow sounds a three-note chord. Two
 finger holes per chamber shift each voice by 0 to +4 semitones.
 
@@ -43,13 +43,13 @@ away from you:
 | `config.lua` | every parameter: pitch, bore, fipple, joint, hole positions |
 | `tuning.lua` | acoustics: chamber lengths, hole diameters, chord table, calibration |
 | `optimize.lua` | searches hole positions for ideal finger spacing; paste results into config |
-| `tri_whistle.lua` | luametry model (head + body, print layout) |
+| `tristle.lua` | luametry model (head + body, print layout) |
 
 ```bash
 luam tuning.lua                     # lengths, holes, chords
 luam optimize.lua                   # re-place holes after changing config
-luametry run tri_whistle.lua        # out/tri_whistle.stl (print layout)
-TRI_WHISTLE_VIEW=assembled luametry run tri_whistle.lua -o out/assembled.stl
+luametry run tristle.lua        # out/tristle.stl (print layout)
+TRISTLE_VIEW=assembled luametry run tristle.lua -o out/assembled.stl
 ```
 
 All lengths are measured from the **labium edge** (the sharp edge of the
@@ -66,7 +66,7 @@ The **window correction** (how much longer the fipple makes the pipe
 sound) cannot be predicted well for a fipple. The default is an
 orifice-model estimate. Calibrate it on a real print:
 
-1. `TRI_WHISTLE_VIEW=calibrate luametry run tri_whistle.lua -o out/calibrate.stl`
+1. `TRISTLE_VIEW=calibrate luametry run tristle.lua -o out/calibrate.stl`
    gives the head and a body **without finger holes**.
 2. Play it warmed up. Tape over two windways at a time and read each root
    on a tuner.

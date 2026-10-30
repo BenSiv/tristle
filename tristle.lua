@@ -1,13 +1,13 @@
--- tri_whistle.lua
--- Luametry model of the tri-whistle: three whistles (C5, E5, G5) side by
+-- tristle.lua
+-- Luametry model of the tristle (tri-whistle): three whistles (C5, E5, G5) side by
 -- side in one flat body, one mouthpiece with three windways, two finger
 -- holes per chamber. Geometry comes from config.lua, hole positions and
 -- diameters from tuning.lua.
 --
---   luametry run tri_whistle.lua             -> out/tri_whistle.stl (print layout)
---   TRI_WHISTLE_VIEW=assembled luametry run tri_whistle.lua -o out/assembled.stl
---   TRI_WHISTLE_VIEW=section   ...  head cut through the E chamber (inspection)
---   TRI_WHISTLE_VIEW=calibrate ...  print layout without finger holes; measure
+--   luametry run tristle.lua             -> out/tristle.stl (print layout)
+--   TRISTLE_VIEW=assembled luametry run tristle.lua -o out/assembled.stl
+--   TRISTLE_VIEW=section   ...  head cut through the E chamber (inspection)
+--   TRISTLE_VIEW=calibrate ...  print layout without finger holes; measure
 --                                   the roots, then `luam tuning.lua calibrate`
 --
 -- Coordinates: z = 0 at the labium edges, mouthpiece +z, foot -z, holes and
@@ -152,7 +152,7 @@ function build(with_holes)
     return head, body
 end
 
-view = os.getenv("TRI_WHISTLE_VIEW")
+view = os.getenv("TRISTLE_VIEW")
 head, body = build(view != "calibrate")
 
 if view == "assembled" then
