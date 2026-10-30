@@ -45,9 +45,9 @@ config.row_pitch = 18.0     -- vertical spacing between rows
 config.bend_z = -32.0       -- tubes leave the vertical under the windows here
 config.row_drop = 30.0      -- extra drop from bend_z to the top row
 config.mid_y = -13.0        -- plane of the traverses between rows and drops
-config.back_y = -33.0       -- flat back face; every tube end opens here
+config.back_y = -32.0       -- flat back face; every tube end opens here
 config.drop_x = { -24.5, -8.5, 4.5 } -- drop column per chamber (top row first)
-config.drop_depth = 11.0    -- E and C drop this far behind mid_y (G's depth is solved)
+config.drop_depth = 10.5    -- E and C drop this far behind mid_y (G's depth is solved)
 
 -- Two-piece build. The joint crosses the three straight drops under the
 -- windows and doubles as a tuning slide: pulling the head out flattens all
@@ -68,7 +68,7 @@ config.hole_inset = 0.0     -- holes sit on the bore axis
 -- Chambers, top row first. window_x places the window; hole positions are
 -- filled in by layout.lua, tuning.lua then solves the diameters.
 config.chambers = {
-    { name = "G", root = "G5", window_x = -13, x = 0, hole_d = 4.2,
+    { name = "G", root = "G5", window_x = -13, x = 0, hole_d = 4.0,
       h2 = { finger = "L index" }, h1 = { finger = "R index" } },
     { name = "E", root = "E5", window_x = 0, x = 0,
       h2 = { finger = "L middle" }, h1 = { finger = "R middle" } },

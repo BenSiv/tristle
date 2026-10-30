@@ -98,13 +98,17 @@ end
 
 -- Solid outline: convex hull of every tube's outer surface and its mirror
 -- image (so the outside is symmetric) plus the mouth end, cut flat at the
--- back face where the tubes open.
+-- back face where the tubes open. The outer surface is teardrop-shaped
+-- like the bores, so their pointed roofs stay covered.
 function outer()
     parts = {}
     for _, c in ipairs(routes.chambers) do
         for _, p in ipairs(keypoints(c.path)) do
-            table.insert(parts, ball(p, r_out))
-            table.insert(parts, ball({ -p[1], p[2], p[3] }, r_out))
+            for _, q in ipairs({ p, { -p[1], p[2], p[3] } }) do
+                for _, piece in ipairs(tear(q, r_out)) do
+                    table.insert(parts, piece)
+                end
+            end
         end
     end
     half = (cfg.tip_width - cfg.tip_depth) / 2

@@ -2,16 +2,18 @@
 -- Acoustic design of the tristle (tri-whistle): chamber lengths, hole positions and
 -- hole diameters, plus the chord/fingering table.
 --
--- Model (open-open pipe, Benade/Flutomat tone-hole formulas):
+-- Model: each chamber is an open-open pipe. Its length comes from
 --   acoustic length from the labium   L(f) = c / (2 f) - window_correction
---   physical length labium -> foot     x_end = L(root) - 0.6133 * r
---   open hole at x with spacing g to the next open thing below it sounds as
---   if the pipe ended at x + C, where
---     C = g/2 * (sqrt(1 + 4 * m * D^2 / g) - 1),   m = (t + 0.75 d) / d^2
---   (d hole diameter, t chimney height, D bore). Twin holes add in parallel:
---   1/m = 1/m_small + 1/m_large.
+--   physical length labium -> foot     L(root) - 0.6133 * r
+-- Holes are placed with a lossless transfer-matrix model: bore segments as
+-- plane-wave lines, each open hole as a shunt inertance of length
+-- t + 0.75 d (t chimney, d diameter), the foot as an open end. The pitch of
+-- a fingering is where the impedance at the virtual open end above the
+-- window goes to zero. Twin holes are two shunts at the same spot.
 --
--- Run standalone for the report:  luam tuning.lua
+-- Run standalone:  luam tuning.lua           report
+--                  luam tuning.lua check     pitch of every fingering
+--                  luam tuning.lua calibrate C=.. E=.. G=..
 
 here = string.match(debug.getinfo(1).source, "^@(.*[\\/])")
 if here == nil then
@@ -54,32 +56,85 @@ function tuning.window_correction(cfg)
     return sb / sw * (cfg.wall + 1.7 * a)
 end
 
-function hole_m(d, t)
-    return (t + 0.75 * d) / (d * d)
+-- Transfer-matrix pieces. Impedances are divided by rho*c and kept as
+-- Z = j * N / D (lossless, so purely reactive) so poles stay finite.
+function tm_pipe(st, k, len, zc)
+    c, s = math.cos(k * len), math.sin(k * len)
+    n = st[1] * c + st[2] * zc * s
+    d = st[2] * c - st[1] * s / zc
+    m = math.sqrt(n * n + d * d)
+    return { n / m, d / m }
 end
 
-function hole_correction(g, m, bore)
-    return g / 2 * (math.sqrt(1 + 4 * m * bore * bore / g) - 1)
+function tm_hole(st, k, d, t)
+    xh = k * (t + 0.75 * d) / (math.pi * d * d / 4)
+    return { st[1] * xh, st[2] * xh + st[1] }
 end
 
--- Inverse of hole_correction: the m that yields correction c over spacing g.
-function m_for_correction(c, g, bore)
-    q = 2 * c / g + 1
-    return g * (q * q - 1) / (4 * bore * bore)
+-- Impedance state at the virtual open end above the window, for a chamber
+-- of `length` with the given open holes ({pos, d, t}, any order).
+function tm_state(cfg, ctx, length, shunts, f)
+    k = 2 * math.pi * f / ctx.c
+    zc = 1 / (math.pi * cfg.bore * cfg.bore / 4)
+    sorted = {}
+    for _, h in ipairs(shunts) do
+        table.insert(sorted, h)
+    end
+    table.sort(sorted, function(a, b) return a[1] > b[1] end)
+    st = tm_pipe({ 0, 1 }, k, ctx.end_correction, zc)
+    x = length
+    for _, h in ipairs(sorted) do
+        st = tm_pipe(st, k, x - h[1], zc)
+        st = tm_hole(st, k, h[2], h[3])
+        x = h[1]
+    end
+    return tm_pipe(st, k, x + ctx.window_correction, zc)
 end
 
--- Diameter whose m equals target (m falls monotonically with d).
-function diameter_for_m(target, t)
-    lo, hi = 0.2, 40.0
-    for i = 1, 60 do
-        mid = (lo + hi) / 2
-        if hole_m(mid, t) > target then
-            lo = mid
+-- Lowest resonance between 0.5 and 2 times `near` (nil if none).
+function tuning.resonance(cfg, ctx, length, shunts, near)
+    step = near / 400
+    prev = tm_state(cfg, ctx, length, shunts, 0.5 * near)
+    f = 0.5 * near + step
+    while f < 2 * near do
+        st = tm_state(cfg, ctx, length, shunts, f)
+        if (prev[1] < 0) != (st[1] < 0) and math.abs(st[2]) > 0.5 then
+            lo, hi = f - step, f
+            sign = prev[1] < 0
+            for i = 1, 40 do
+                mid = (lo + hi) / 2
+                if (tm_state(cfg, ctx, length, shunts, mid)[1] < 0) == sign then
+                    lo = mid
+                else
+                    hi = mid
+                end
+            end
+            return (lo + hi) / 2
+        end
+        prev = st
+        f = f + step
+    end
+    return nil
+end
+
+-- Bisection for x in [a, b] with fn(x) = target, fn monotonic.
+function bisect(fn, a, b, target)
+    fa = fn(a)
+    for i = 1, 50 do
+        m = (a + b) / 2
+        fm = fn(m)
+        if (fm - target) * (fa - target) > 0 then
+            a, fa = m, fm
         else
-            hi = mid
+            b = m
         end
     end
-    return (lo + hi) / 2
+    return (a + b) / 2
+end
+
+-- Open area over effective length: what twin holes add in parallel.
+function admittance(d, t)
+    return (math.pi * d * d / 4) / (t + 0.75 * d)
 end
 
 -- Chimney height of a hole drilled straight through a flat front face at
@@ -104,41 +159,44 @@ function tuning.hole_offset(cfg, chamber, width)
 end
 
 -- Solve one hole. spec.pos fixed -> solve diameter(s); spec.d fixed -> solve
--- position. tail(x) is the acoustic spacing g from x to the next opening.
-function solve_hole(cfg, chamber, spec, tail, l_full, l_semi)
+-- position. `below` are the shunts of the open hole(s) further down.
+function solve_hole(cfg, ctx, chamber, spec, length, below, f_full, f_semi)
     hole = { finger = spec.finger }
     width = 7
     xo = 0
+    pitch_with = function(pos, d, t)
+        sh = { { pos, d, t } }
+        for _, b in ipairs(below) do
+            table.insert(sh, b)
+        end
+        f = tuning.resonance(cfg, ctx, length, sh, f_full)
+        if f == nil then
+            return 0
+        end
+        return f
+    end
+    lowest = length
+    for _, b in ipairs(below) do
+        lowest = math.min(lowest, b[1])
+    end
     for iter = 1, 4 do
         t = chimney(cfg, xo)
-        m_full = 0
         if spec.d != nil then
-            m_full = hole_m(spec.d, t)
-            lo, hi = 1.0, l_full -- a hole never sits below its own acoustic end
-            for i = 1, 80 do
-                x = (lo + hi) / 2
-                if x + hole_correction(tail(x), m_full, cfg.bore) > l_full then
-                    hi = x
-                else
-                    lo = x
-                end
-            end
-            hole.pos = (lo + hi) / 2
+            hole.d = spec.d
+            hole.pos = bisect(function(x) return pitch_with(x, spec.d, t) end, 0.5 * lowest, lowest - 1, f_full)
         else
             hole.pos = spec.pos
-            m_full = m_for_correction(l_full - hole.pos, tail(hole.pos), cfg.bore)
+            hole.d = bisect(function(d) return pitch_with(spec.pos, d, t) end, 0.3, 2 * cfg.bore, f_full)
         end
-        g = tail(hole.pos)
-        hole.d = diameter_for_m(m_full, t)
+        hole.shunts = { { hole.pos, hole.d, t } }
         if cfg.twin_holes == true then
-            m_semi = m_for_correction(l_semi - hole.pos, g, cfg.bore)
-            hole.d_small = diameter_for_m(m_semi, t)
-            inv = 1 / m_full - 1 / m_semi
-            if inv > 0 then
-                hole.d_large = diameter_for_m(1 / inv, t)
-            else
-                hole.d_large = 0
+            hole.d_small = bisect(function(d) return pitch_with(hole.pos, d, t) end, 0.3, hole.d, f_semi)
+            rest = admittance(hole.d, t) - admittance(hole.d_small, t)
+            hole.d_large = 0
+            if rest > 0 then
+                hole.d_large = bisect(function(d) return admittance(d, t) end, 0.3, hole.d, rest)
             end
+            hole.shunts = { { hole.pos, hole.d_small, t }, { hole.pos, hole.d_large, t } }
             width = hole.d_small + cfg.twin_web + hole.d_large
         else
             width = hole.d
@@ -179,17 +237,17 @@ function tuning.context(cfg)
     return ctx
 end
 
+function tuning.note_freq(cfg, m)
+    return cfg.a4 * 2 ^ ((m - 69) / 12)
+end
+
 function tuning.design_chamber(cfg, ctx, ch)
-    acoustic = ctx.acoustic
     root = tuning.midi(ch.root)
     out = { name = ch.name, root = root, x = ch.x }
-    out.length = acoustic(root) - ctx.end_correction
-    foot = acoustic(root)
-    out.h1 = solve_hole(cfg, ch, ch.h1, function(x) return foot - x end,
-                        acoustic(root + 2), acoustic(root + 1))
-    h1_pos = out.h1.pos
-    out.h2 = solve_hole(cfg, ch, ch.h2, function(x) return h1_pos - x end,
-                        acoustic(root + 4), acoustic(root + 3))
+    out.length = ctx.acoustic(root) - ctx.end_correction
+    hz = function(n) return tuning.note_freq(cfg, root + n) end
+    out.h1 = solve_hole(cfg, ctx, ch, ch.h1, out.length, {}, hz(2), hz(1))
+    out.h2 = solve_hole(cfg, ctx, ch, ch.h2, out.length, out.h1.shunts, hz(4), hz(3))
     return out
 end
 
@@ -354,8 +412,42 @@ function tuning.calibrate(cfg, measured)
     return table.concat(lines, "\n")
 end
 
+-- Pitch of every full fingering (closed, h1 open, both open) from the
+-- transfer-matrix model, as cents off target. After `design` this reads 0;
+-- it is there to check hand-edited positions or sizes.
+function tuning.check(cfg, design)
+    lines = { "Transfer-matrix check (cents off target, 0 = exact):" }
+    for _, c in ipairs(design.chambers) do
+        parts = {}
+        fingerings = { {}, c.h1.shunts, {} }
+        for _, s in ipairs(c.h1.shunts) do
+            table.insert(fingerings[3], s)
+        end
+        for _, s in ipairs(c.h2.shunts) do
+            table.insert(fingerings[3], s)
+        end
+        for i, sh in ipairs(fingerings) do
+            n = 2 * (i - 1)
+            target = tuning.note_freq(cfg, c.root + n)
+            f = tuning.resonance(cfg, design, c.length, sh, target)
+            label = tuning.note_name(c.root + n)
+            if f == nil then
+                table.insert(parts, label .. " ?")
+            else
+                table.insert(parts, string.format("%s %+.1f", label, 1200 * math.log(f / target) / math.log(2)))
+            end
+        end
+        table.insert(lines, string.format("  %s chamber: %s", c.name, table.concat(parts, "   ")))
+    end
+    return table.concat(lines, "\n")
+end
+
 if arg != nil and arg[0] != nil and string.match(arg[0], "tuning%.lua$") != nil then
-    if arg[1] == "calibrate" then
+    if arg[1] == "check" then
+        package.loaded["tuning"] = tuning
+        require("layout").solve(config)
+        print(tuning.check(config, tuning.design(config)))
+    elseif arg[1] == "calibrate" then
         measured = {}
         for i = 2, #arg do
             name, hz = string.match(arg[i], "^(%a)=([%d%.]+)$")

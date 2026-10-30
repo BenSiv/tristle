@@ -6,7 +6,7 @@ blow sounds a three-note chord. Two finger holes per chamber shift each
 voice by 0 to +4 semitones.
 
 The three tubes are coiled into a compact, symmetric two-piece body,
-about 76 × 42 × 173 mm, that prints without support. Modelled in [luametry](../luametry) (luam + Manifold).
+about 74 × 41 × 176 mm, that prints without support. Modelled in [luametry](../luametry) (luam + Manifold).
 
 ## How it plays
 
@@ -16,14 +16,14 @@ three, **one chamber per finger row**:
 
 ```
             left hand   right hand
- index         G  ●     ●  G          G chamber (top row, 15 mm apart)
- middle       E  ●       ●  E         E chamber (22 mm)
- ring        C  ●         ●  C        C chamber (bottom row, 30 mm)
+ index        G  ●       ●  G         G chamber (top row, 21 mm apart)
+ middle      E  ●         ●  E        E chamber (25 mm)
+ ring       C  ●           ●  C       C chamber (bottom row, 32 mm)
 ```
 
 The rows widen going down. Each row's gap is the natural spacing of
 that chamber's holes, which grows with chamber length, so every hole can
-be a normal size (4.2 mm on the G row, 5 mm on the others).
+be a normal size (4 mm on the G row, 5 mm on the others).
 
 The same rule applies on every row: **the right finger opens first**,
 then the left. Half-holing gives the semitones in between:
@@ -90,10 +90,15 @@ edge** (the sharp edge of the window).
 ## Acoustic model
 
 Each chamber is treated as an open-open pipe:
-`L = c / 2f − window correction − 0.61·r`. Hole sizes come from the
-Benade/Flutomat tone-hole formula. Bends are assumed not to change the
-acoustic length, which holds well for gentle bends like these;
-calibration absorbs what's left.
+`L = c / 2f − window correction − 0.61·r`. Holes are placed with a
+lossless transfer-matrix model: plane-wave bore segments, each open hole
+a shunt inertance, the foot an open end. The pitch of a fingering is
+where that model resonates. `luam tuning.lua check` prints every
+fingering's pitch in cents (0 after a fresh design; useful after editing
+positions or sizes by hand). The simpler closed-form tone-hole formulas
+put the two holes of a chamber too close together, by enough to be up to
+18 cents out, so they're no longer used. Bends are assumed not to change
+the acoustic length; calibration absorbs what's left.
 
 The **window correction** (how much longer the fipple makes the pipe
 sound) cannot be predicted well for a fipple. The default is an
@@ -106,7 +111,9 @@ orifice-model estimate. Calibrate it on a real print:
 3. `luam tuning.lua calibrate C=521.8 E=657.0 G=781.3`
 4. Put the reported value in `config.window_correction`, then print the
    real body. The tubes re-route automatically, and the head's windways
-   and tenon don't change, so the head can be reused.
+   and tenon don't change, so the head can be reused. The routing solves
+   for corrections from about 26 to 36 mm (the estimate is 31); outside
+   that, adjust `row_drop` and rerun `luam layout.lua`.
 
 ## Tuning slide
 
@@ -123,12 +130,13 @@ Both parts print **upside down**, with no support:
 - Head (about 64 mm): stands on its flat mouth end (26 × 10 mm; add a
   brim). The windways are vertical channels, the most accurate
   orientation.
-- Body (about 119 mm): stands on its joint face, collar on the bed.
+- Body (about 122 mm): stands on its joint face, collar on the bed.
 - Vertical tube runs are round. Every other tube run has a pointed,
   teardrop-shaped roof that faces the foot of the instrument, which is
   "up" on the printer, so the channels print without support. The point
   adds about 7 % cross-section on those runs, which doesn't measurably
-  change the pitch.
+  change the pitch. The outer shell follows the same teardrop shape, so
+  every pointed roof keeps at least 2 mm of wall.
 - Use a 0.4 mm nozzle and layers of 0.12 mm or less in the head. The
   labium edges need to be as sharp as the printer allows.
 - `joint_clearance` sets the slip fit. Print a test joint first if your

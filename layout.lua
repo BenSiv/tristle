@@ -115,7 +115,7 @@ function solve(fn, a, b, target)
 end
 
 LEAD_RANGE = { 0.5, 60 } -- G: drop depth behind mid_y; E, C: front-run length
-TAIL_RANGE = { 1, 60 } -- tail drop below the row
+TAIL_RANGE = { 0.3, 60 } -- tail drop below the row
 
 function layout.solve(cfg)
     f = layout.frame(cfg)
