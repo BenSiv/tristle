@@ -1,6 +1,6 @@
 # tristle
 
-Tristle, short for tri-whistle: a 3D-printable chord whistle: one mouthpiece, three windways, three
+Tristle (short for tri-whistle) is a 3D-printable chord whistle: one mouthpiece, three windways, three
 chambers tuned to C5, E5 and G5. Every blow sounds a three-note chord. Two
 finger holes per chamber shift each voice by 0 to +4 semitones.
 
