@@ -19,40 +19,42 @@ config.window_correction = nil
 config.bore = 11.0          -- bore diameter, same for all three chambers
 config.wall = 1.6           -- outer wall (also the finger-hole chimney height)
 config.tube_gap = 13.0      -- minimum centre-to-centre distance between tubes
-config.bend_radius = 7.0    -- corner rounding of the coiled tubes
+config.bend_radius = 7.0    -- corner rounding of the tubes
 
 -- Fipple (identical in every chamber) ----------------------------------------
-config.windway_width = 4.8   -- narrow, so the beak stays ~19 mm wide
+config.windway_width = 4.8   -- narrow, so the three slits span ~19 mm at the lips
 config.windway_height = 1.1
 config.windway_straight = 12.0 -- straight run before the window (keep parallel)
 config.window_length = 3.5     -- windway exit to labium edge
 config.labium_angle = 16.0     -- ramp angle, degrees
-config.beak_length = 18.0      -- converging part of the windways
+config.beak_length = 24.0      -- mouthpiece taper; keeps its overhang < 45 deg
 config.beak_web = 1.0          -- wall between windways at the lips
-config.beak_wall = 1.2         -- outer beak wall beside the windways
+config.tip_width = 26.0        -- flat mouth end (the head prints standing on it)
+config.tip_depth = 10.0
 
--- Layout --------------------------------------------------------------------
--- Finger grid: two columns (left hand, right hand) x three rows (index,
--- middle, ring). Each row is one chamber, its tube running left -> right
--- across the front: left finger = h2 (upper, +4), right finger = h1
--- (lower, opened first, +2).
-config.column_gap = 22.0    -- hole spacing across a row
+-- Finger grid -----------------------------------------------------------------
+-- Two columns (left hand, right hand) x three rows (index, middle, ring),
+-- one chamber per row, its tube running left -> right across the front:
+-- left finger = h2 (+4), right finger = h1 (opened first, +2). Each row's
+-- hole gap is the chamber's natural spacing for hole_target holes, so rows
+-- widen going down (G top, C bottom).
+config.hole_target = 5.0    -- design finger holes at this diameter (per-chamber hole_d overrides)
 config.row_pitch = 18.0     -- vertical spacing between rows
-config.window_pitch = 13.0  -- window spacing (x) at the labia
-config.bend_z = -32.0       -- where the drop tubes leave the vertical under the windows
-config.back_y = -26.0       -- plane of the drop tubes behind the rows
-config.mid_y = -13.0        -- plane of the traverses between rows and drops
-config.row_entry_x = -22.0  -- where rows 1-2 turn onto the front
-config.pillar_x = 35.0      -- G's drop down the left side (x = -pillar_x)
-config.curl_y = -31.0       -- plane of C's U-curl, behind the skirt
-config.skirt_back_y = -20.5 -- back wall of the open skirt (in front of the curl)
-config.tail_stub = 3.0      -- minimum tail protrusion into the open skirt
 
--- Two-piece build: the joint crosses the three straight drops under the
--- windows. Pulling the head out flattens all three chambers together.
+-- Tube routing (see layout.lua) -------------------------------------------
+config.bend_z = -32.0       -- tubes leave the vertical under the windows here
+config.row_drop = 30.0      -- extra drop from bend_z to the top row
+config.mid_y = -13.0        -- plane of the traverses between rows and drops
+config.back_y = -33.0       -- flat back face; every tube end opens here
+config.drop_x = { -24.5, -8.5, 4.5 } -- drop column per chamber (top row first)
+config.drop_depth = 11.0    -- E and C drop this far behind mid_y (G's depth is solved)
+
+-- Two-piece build. The joint crosses the three straight drops under the
+-- windows and doubles as a tuning slide: pulling the head out flattens all
+-- three chambers together. Both parts print upside down.
 config.joint_z = -15.0        -- head/body split plane (below the labium ramps)
 config.joint_length = 9.0     -- tenon length (must end above bend_z + bend_radius)
-config.joint_wall = 1.2       -- tenon wall around each bore
+config.joint_wall = 1.6       -- tenon wall around each bore
 config.joint_clearance = 0.15 -- radial; tune to your printer for a snug slip fit
 
 -- Finger holes ----------------------------------------------------------------
@@ -63,14 +65,14 @@ config.twin_holes = false   -- true: recorder-style double holes (exact semitone
 config.twin_web = 1.0       -- material between the two holes of a twin
 config.hole_inset = 0.0     -- holes sit on the bore axis
 
--- Chambers, top row first. window_x places the window; pos fields are filled
--- in by layout.lua from the tube paths, tuning.lua then solves diameters.
+-- Chambers, top row first. window_x places the window; hole positions are
+-- filled in by layout.lua, tuning.lua then solves the diameters.
 config.chambers = {
-    { name = "C", root = "C5", window_x = 13, x = 0,
+    { name = "G", root = "G5", window_x = -13, x = 0, hole_d = 4.2,
       h2 = { finger = "L index" }, h1 = { finger = "R index" } },
     { name = "E", root = "E5", window_x = 0, x = 0,
       h2 = { finger = "L middle" }, h1 = { finger = "R middle" } },
-    { name = "G", root = "G5", window_x = -13, x = 0,
+    { name = "C", root = "C5", window_x = 13, x = 0,
       h2 = { finger = "L ring" }, h1 = { finger = "R ring" } },
 }
 

@@ -367,8 +367,7 @@ if arg != nil and arg[0] != nil and string.match(arg[0], "tuning%.lua$") != nil 
     else
         -- hole positions come from the tube routing
         package.loaded["tuning"] = tuning
-        layout = require("layout")
-        layout.solve(config)
+        require("layout").solve(config)
         print(tuning.report(tuning.design(config), config))
     end
 end
