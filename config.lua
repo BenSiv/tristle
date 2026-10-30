@@ -11,7 +11,7 @@ config.a4 = 440.0
 config.temperature_c = 25.0 -- air in a played whistle is warm; raise to sharpen
 
 -- Window (mouth) end correction in mm. This is the one number that theory
--- cannot pin down for a fipple; print calibrate.lua, measure, and put the
+-- cannot pin down for a fipple; print the calibrate view, measure, put the
 -- value it reports here. nil = use the orifice estimate in tuning.lua.
 config.window_correction = nil
 
