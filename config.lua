@@ -43,6 +43,9 @@ config.bend_z = -32.0       -- where the drop tubes leave the vertical under the
 config.back_y = -26.0       -- plane of the drop tubes behind the rows
 config.mid_y = -13.0        -- plane of the traverses between rows and drops
 config.row_entry_x = -22.0  -- where rows 1-2 turn onto the front
+config.pillar_x = 35.0      -- G's drop down the left side (x = -pillar_x)
+config.curl_y = -31.0       -- plane of C's U-curl, behind the skirt
+config.skirt_back_y = -20.5 -- back wall of the open skirt (in front of the curl)
 config.tail_stub = 3.0      -- minimum tail protrusion into the open skirt
 
 -- Two-piece build: the joint crosses the three straight drops under the

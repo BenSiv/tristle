@@ -5,8 +5,8 @@ mouthpiece, three windways, three chambers tuned to C5, E5 and G5. Every
 blow sounds a three-note chord. Two finger holes per chamber shift each
 voice by 0 to +4 semitones.
 
-The three tubes are coiled into a compact two-piece body, about
-86 × 42 × 151 mm. Modelled in [luametry](../luametry) (luam + Manifold).
+The three tubes are coiled into a compact, symmetric two-piece body,
+about 84 × 55 × 151 mm. Modelled in [luametry](../luametry) (luam + Manifold).
 
 ## How it plays
 
@@ -42,21 +42,28 @@ Each chamber is one tube, from its labium down to an open end. Each tube
 runs across the front at its own finger row, with both holes on that run.
 The rest of the tube winds behind or beside the rows:
 
-- **C (top row)**: drops behind the rows, then curls down over the E
-  level toward G and comes back up (the U-curl) before turning onto its
-  row.
-- **E (middle row)**: drops behind, comes forward, and dips slightly on
-  its way to its row.
-- **G (bottom row)**: jogs left in front of everything and drops down
-  the left side to its row.
-- **The tube ends face down** into an open skirt under the rows. The skirt
-  lets each tube end exactly where tuning needs it, without reaching the
-  outer surface.
+- **C (top row)**: drops behind the rows, curls down in a U over the E
+  and G levels, and comes back up to its row. The U sits centred at the
+  back, behind the skirt.
+- **E (middle row)**: drops behind the rows and comes forward to its row.
+  Its tail drops down the right side.
+- **G (bottom row)**: jogs left and drops down the left side to its row.
+- **The tube ends face down** into an open skirt at the front of the
+  bottom. The ends can't share one flat bottom face, because C's tail
+  (at most 61 mm long) can't reach as low as G's row needs. The skirt lets
+  each tube end exactly where tuning needs it.
 
-`layout.lua` solves one slack dimension per chamber (C's U-curl width,
-E's dip depth, G's drop position) so that the length along the tube to
-the first hole matches tuning. It also checks that no two tubes come
-closer than `tube_gap`. View the coil itself with `TRISTLE_VIEW=air`.
+The outer shell is mirror-symmetric about the centre line, and so are the
+windows, the hole grid and the joint. Inside, all three tubes enter their
+rows from the left and leave on the right (that's what keeps "right
+finger first" true on every row), so the routing can't be perfectly
+mirrored.
+
+`layout.lua` solves one slack dimension per chamber (C's U depth, how far
+back E's drop sits, how far back G's drop sits) so that the length along
+the tube to the first hole matches tuning. It also checks that no two
+tubes come closer than `tube_gap`. View the coil itself with
+`TRISTLE_VIEW=air`.
 
 ## Files
 

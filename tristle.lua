@@ -7,6 +7,7 @@
 --
 --   luametry run tristle.lua             -> out/tristle.stl (print layout)
 --   TRISTLE_VIEW=assembled luametry run tristle.lua -o out/assembled.stl
+--   TRISTLE_VIEW=xray      ...  outer shell clipped to the back half (shows tubes in place)
 --   TRISTLE_VIEW=air       ...  just the air inside (bores, windways): shows the coil
 --   TRISTLE_VIEW=calibrate ...  print layout without finger holes; measure
 --                               the roots, then `luam tuning.lua calibrate`
@@ -83,7 +84,8 @@ function pipe(pts, radius)
     return cad.union(parts)
 end
 
--- Footprint of all tubes (x/y extremes of their centrelines).
+-- Footprint of all tubes (x/y extremes of their centrelines), made
+-- symmetric about x = 0 so the outside of the instrument is mirrored.
 function footprint()
     x0, x1, y0, y1 = math.huge, -math.huge, math.huge, -math.huge
     for _, c in ipairs(routes.chambers) do
@@ -94,7 +96,8 @@ function footprint()
             y1 = math.max(y1, p[2])
         end
     end
-    return x0, x1, y0, y1
+    half = math.max(-x0, x1)
+    return -half, half, y0, y1
 end
 
 fx0, fx1, fy0, fy1 = footprint()
@@ -104,13 +107,15 @@ for _, c in ipairs(routes.chambers) do
 end
 z_bot = z_bot - 4
 
--- Solid outline: convex hull of every tube's outer surface, the beak tip,
--- and straight-walled corners down to the flat bottom of the skirt.
+-- Solid outline: convex hull of every tube's outer surface and its mirror
+-- image (so the outside is symmetric), the beak tip, and straight-walled
+-- corners down to the flat bottom of the skirt.
 function outer_hull()
     parts = {}
     for _, c in ipairs(routes.chambers) do
         for _, p in ipairs(keypoints(c.path)) do
             table.insert(parts, ball(p, r_out))
+            table.insert(parts, ball({ -p[1], p[2], p[3] }, r_out))
         end
     end
     tip_w = 3 * ww + 2 * cfg.beak_web + 2 * cfg.beak_wall
@@ -124,9 +129,10 @@ function outer_hull()
 end
 
 -- Open skirt under the rows; the tube ends hang into it as short stubs.
+-- It stops at skirt_back_y so C's U-curl behind it stays in solid body.
 function skirt()
     m = r_out - 3
-    return box(fx0 - m, fx1 + m, fy0 - m, fy1 + m, z_bot - 1, frame.skirt_z)
+    return box(fx0 - m, fx1 + m, cfg.skirt_back_y, fy1 + m, z_bot - 1, frame.skirt_z)
 end
 
 function stubs()

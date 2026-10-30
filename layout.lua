@@ -3,10 +3,9 @@
 -- from its labium (z = 0) down to an open end hanging into the skirt under
 -- the rows. One slack dimension per chamber is solved so that the arc
 -- length to its first finger hole matches what tuning needs:
---   C (top row)    U-curl width behind the rows (curls down over E toward G;
---                  depth fixed just above the skirt)
---   E (middle row) dip depth of its traverse
---   G (bottom row) how far left its drop sits
+--   C (top row)    U-curl depth: curls down over E toward G, behind the skirt
+--   E (middle row) how far back its drop sits
+--   G (bottom row) how far back its left-side drop sits
 --
 -- Run standalone for the routing report and clearance check:  luam layout.lua
 
@@ -45,35 +44,35 @@ function layout.waypoints(cfg, f, k, s)
     wx = cfg.chambers[k].window_x
     z = f.rows[k]
     tx = f.turn_x
-    if k == 1 then -- C: drop behind, U-curl over E toward G, back up at x = -s
-        u = f.skirt_z + f.r_out + 2
+    if k == 1 then -- C: drop behind, U-curl down to z = s behind the skirt, up, row
+        uy, ux = cfg.curl_y, -cfg.tube_gap
         tail = { tx, my, f.skirt_z }
         return {
-            { wx, 0, 0 }, { wx, 0, bz }, { wx, by, bz }, { wx, by, u },
-            { -s, by, u }, { -s, by, z }, { -s, my, z }, { ex, my, z }, { ex, 0, z },
+            { wx, 0, 0 }, { wx, 0, bz }, { wx, uy, bz }, { wx, uy, s },
+            { ux, uy, s }, { ux, uy, z }, { ux, my, z }, { ex, my, z }, { ex, 0, z },
             { tx, 0, z }, { tx, my, z - cfg.tube_gap }, { tx, my, DEEP },
         }, tail
-    elseif k == 2 then -- E: drop behind, forward, dipped traverse, row
-        ex2 = tx + cfg.tube_gap
-        tail = { ex2, 0, f.skirt_z }
+    elseif k == 2 then -- E: drop behind at depth by - s, traverse, row, right pillar
+        px = tx + cfg.tube_gap
+        tail = { px, 0, f.skirt_z }
         return {
-            { wx, 0, 0 }, { wx, 0, bz }, { wx, by, bz }, { wx, by, z }, { wx, my, z },
-            { (wx + ex) / 2, my, z - s }, { ex, my, z }, { ex, 0, z },
-            { ex2, 0, z }, { ex2, 0, DEEP },
+            { wx, 0, 0 }, { wx, 0, bz }, { wx, by - s, bz }, { wx, by - s, z }, { wx, my, z },
+            { ex, my, z }, { ex, 0, z }, { px, 0, z }, { px, 0, DEEP },
         }, tail
     end
-    -- G: jog left in front of everything, drop outside the rows, row
+    -- G: jog left (set back by s), drop down the left pillar, row
+    px = cfg.pillar_x
     tail = { tx, 0, f.skirt_z }
     return {
-        { wx, 0, 0 }, { wx, 0, bz }, { -s, 0, bz }, { -s, 0, z },
-        { tx, 0, z }, { tx, 0, DEEP },
+        { wx, 0, 0 }, { wx, 0, bz }, { wx, -s, bz }, { -px, -s, bz }, { -px, -s, z },
+        { -px, 0, z }, { tx, 0, z }, { tx, 0, DEEP },
     }, tail
 end
 
 SLACK_RANGE = {
-    { 13, 45 },    -- C: x of the U's return leg (as a distance to the left)
-    { 0, 40 },     -- E: dip depth
-    { 30, 70 },    -- G: drop x (as a positive distance to the left)
+    { -50, -130 }, -- C: U-curl bottom (z)
+    { 0.5, 25 },   -- E: extra depth of its drop
+    { 0.5, 13 },   -- G: set-back of its left pillar (0 would make a zero-length segment)
 }
 
 function first_hole_s(cfg, f, k, s)
@@ -140,11 +139,11 @@ function layout.solve(cfg)
         p = path.truncate(p, L)
         ch.h2.pos = s_h2
         ch.h1.pos = s_h2 + cfg.column_gap
-        table.insert(result.chambers, {
+        result.chambers[k] = {
             name = ch.name, row = k, length = L, slack = slack, path = p,
             window = { lo, hi }, h2 = s_h2, h1 = s_h2 + cfg.column_gap,
             end_point = p.pts[#p.pts],
-        })
+        }
     end
     return result
 end
