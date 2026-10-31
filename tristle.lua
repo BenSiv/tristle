@@ -34,18 +34,32 @@ path = require("path")
 cfg = config
 routes = layout.solve(cfg)
 design = tuning.design(cfg)
-inlets = tuning.inlets(cfg)
+orifices = tuning.orifices(cfg)
 
 FN = 48
 r = cfg.bore / 2
 r_out = r + cfg.wall
 ww = cfg.windway_width
 wh = cfg.windway_height
-block_top = cfg.window_length + cfg.windway_straight -- end of straight windway
-head_top = block_top + cfg.beak_length
 ramp_len = (r_out + 1 - r) / math.tan(math.rad(cfg.labium_angle))
-lip_pitch = ww + cfg.beak_web
-tip_y = 3.0 -- mouth end centre (windways sit at y = r)
+sag = cfg.labium_arc
+
+-- Mouthpiece air path, bottom up: window, flat jet slit, round-to-flat
+-- taper, round channel, branch point inside the inlet channel, inlet.
+slit_top = cfg.window_length + cfg.windway_straight
+duct_end = slit_top + cfg.nozzle_taper
+duct_r = cfg.duct_d / 2
+inlet_r = cfg.inlet_d / 2
+duct_y = r + wh / 2 - duct_r - 0.6  -- channel tucked behind the jet slit
+side_x = 0
+for _, ch in ipairs(cfg.chambers) do
+    side_x = math.max(side_x, math.abs(ch.window_x))
+end
+branch_x = inlet_r - duct_r + 0.5  -- side channels start inside the inlet
+branch_z = duct_end + (side_x - branch_x) / math.tan(math.rad(cfg.duct_angle))
+head_top = branch_z + cfg.inlet_length
+inlet_y = duct_y - 1.5 -- a little further back than the channels: keeps the front wall
+tip_y = inlet_y
 
 joint_z = cfg.joint_z
 joint_len = cfg.joint_length
@@ -120,14 +134,72 @@ function outer()
     return cad.intersection({ cad.hull(parts), box(-500, 500, cfg.back_y, 500, -500, 500) })
 end
 
--- Labium ramp: triangle in the (y, z) plane, extruded along x. Points must
--- run counter-clockwise or extrude yields an inside-out (negative) solid.
-function ramp(x)
+-- Labium edge height across the window: a circular arc through the
+-- window's corners (z = 0) dipping `sag` at the centre.
+function labium_z(dx)
+    if sag <= 0 then
+        return 0
+    end
+    rr = (ww * ww / 4 + sag * sag) / (2 * sag)
+    return (rr - sag) - math.sqrt(rr * rr - dx * dx)
+end
+
+-- Thin slice of the labium ramp at edge height ze: triangle in the (y, z)
+-- plane, extruded along x. Points must run counter-clockwise or extrude
+-- yields an inside-out (negative) solid.
+function ramp_slice(x, ze)
     tri = { { r, 0 }, { r_out + 1, -ramp_len }, { r_out + 1, 0 } }
-    s = cad.extrude(tri, ww)
+    s = cad.extrude(tri, 0.01)
     s = cad.rotate(s, { 90, 0, 0 })
     s = cad.rotate(s, { 0, 0, 90 })
-    return cad.translate(s, { x - ww / 2, 0, 0 })
+    return cad.translate(s, { x - 0.005, 0, ze })
+end
+
+-- Window and labium for the chamber whose window is centred at x: slices
+-- across the width, each pair hulled, so the arched edge and its ramp are
+-- smooth ruled surfaces.
+function window_cuts(x)
+    n = 16
+    cols, ramps = {}, {}
+    for i = 0, n do
+        dx = -ww / 2 + ww * i / n
+        ze = labium_z(dx)
+        table.insert(cols, box(x + dx - 0.005, x + dx + 0.005, 0, r_out + 1, ze, cfg.window_length))
+        table.insert(ramps, ramp_slice(x + dx, ze))
+    end
+    parts = {}
+    for i = 2, #cols do
+        table.insert(parts, cad.hull({ cols[i - 1], cols[i] }))
+        table.insert(parts, cad.hull({ ramps[i - 1], ramps[i] }))
+    end
+    return parts
+end
+
+function capsule(a, b, radius)
+    return cad.hull({ ball(a, radius), ball(b, radius) })
+end
+
+-- Air path from the shared inlet to chamber k's jet slit: round channel
+-- (starting with this chamber's orifice), smooth taper to the flat slit.
+function mouth_air(k, x)
+    cuts = {}
+    start = { 0, inlet_y, branch_z }
+    if x != 0 then
+        start = { x / math.abs(x) * branch_x, inlet_y, branch_z }
+    end
+    stop = { x, duct_y, duct_end }
+    dir = path.unit(path.sub(stop, start))
+    od = orifices[k].d
+    -- the orifice runs from inside the inlet to orifice_length past its wall
+    o_end = path.add(start, path.mul(dir, inlet_r + cfg.orifice_length))
+    table.insert(cuts, capsule(start, o_end, od / 2))
+    table.insert(cuts, capsule(o_end, stop, duct_r))
+    table.insert(cuts, cad.hull({
+        ball(stop, duct_r),
+        box(x - ww / 2, x + ww / 2, r - wh / 2, r + wh / 2, slit_top - 0.01, slit_top),
+    }))
+    table.insert(cuts, box(x - ww / 2, x + ww / 2, r - wh / 2, r + wh / 2, cfg.window_length - 0.01, slit_top))
+    return cuts
 end
 
 function finger_holes()
@@ -150,28 +222,18 @@ function air(with_holes)
         x = cfg.chambers[k].window_x
         table.insert(cuts, bore_pipe(keypoints(c.path)))
         table.insert(cuts, rod(x, 0, r, -1, cfg.window_length))
-        -- flatten the bore roof under the window so the labium edge is straight
-        table.insert(cuts, box(x - ww / 2, x + ww / 2, 0, r, -(ramp_len + 3), cfg.window_length))
-        table.insert(cuts, box(x - ww / 2, x + ww / 2, 0, r_out + 1, 0, cfg.window_length))
-        table.insert(cuts, ramp(x))
-        -- windway: straight run, then converging to the narrow mouth end
-        table.insert(cuts, box(x - ww / 2, x + ww / 2, r - wh / 2, r + wh / 2, cfg.window_length - 0.01, block_top))
-        lip_x = 0
-        if x < 0 then
-            lip_x = -lip_pitch
-        elseif x > 0 then
-            lip_x = lip_pitch
+        -- flatten the bore roof under the window so the labium edge is sharp
+        table.insert(cuts, box(x - ww / 2, x + ww / 2, 0, r, -(sag + ramp_len + 2), cfg.window_length))
+        for _, w in ipairs(window_cuts(x)) do
+            table.insert(cuts, w)
         end
-        inlet_top = head_top - cfg.inlet_length
-        table.insert(cuts, cad.hull({
-            box(x - ww / 2, x + ww / 2, r - wh / 2, r + wh / 2, block_top - 0.01, block_top),
-            box(lip_x - ww / 2, lip_x + ww / 2, r - wh / 2, r + wh / 2, inlet_top - 0.01, inlet_top),
-        }))
-        -- narrow inlet slit at the lips: opens abruptly into the windway,
-        -- slowing this chamber's jet (see config.jet_match)
-        wi = inlets[k].width
-        table.insert(cuts, box(lip_x - wi / 2, lip_x + wi / 2, r - wh / 2, r + wh / 2, inlet_top - 0.02, head_top + 1))
+        for _, m in ipairs(mouth_air(k, x)) do
+            table.insert(cuts, m)
+        end
     end
+    -- the one shared inlet, round-bottomed so it prints as a dome
+    table.insert(cuts, rod(0, inlet_y, inlet_r, branch_z, head_top + 1))
+    table.insert(cuts, ball({ 0, inlet_y, branch_z }, inlet_r))
     if with_holes == true then
         for _, c in ipairs(finger_holes()) do
             table.insert(cuts, c)

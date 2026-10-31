@@ -11,9 +11,19 @@ if ! command -v "$LUAMETRY" > /dev/null; then
     LUAMETRY="$HOME/projects/luametry/bin/luametry"
 fi
 mkdir -p out
-TRISTLE_PART=head "$LUAMETRY" run tristle.lua -o out/head.stl > /dev/null
-TRISTLE_PART=body "$LUAMETRY" run tristle.lua -o out/body.stl > /dev/null
-TRISTLE_PART=body TRISTLE_VIEW=calibrate "$LUAMETRY" run tristle.lua -o out/body_calibrate.stl > /dev/null
-TRISTLE_VIEW=assembled "$LUAMETRY" run tristle.lua -o out/assembled.stl > /dev/null
+
+# luametry exits 0 even when the script fails, so check its output
+run() {
+    out="$1"; shift
+    log=$(env "$@" "$LUAMETRY" run tristle.lua -o "$out" 2>&1)
+    if echo "$log" | grep -q "ERROR"; then
+        echo "$log" >&2
+        exit 1
+    fi
+}
+run out/head.stl TRISTLE_PART=head
+run out/body.stl TRISTLE_PART=body
+run out/body_calibrate.stl TRISTLE_PART=body TRISTLE_VIEW=calibrate
+run out/assembled.stl TRISTLE_VIEW=assembled
 rm -f out/*.manifest.json
 ls -l out/head.stl out/body.stl out/body_calibrate.stl out/assembled.stl

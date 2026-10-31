@@ -6,7 +6,7 @@ blow sounds a three-note chord. Two finger holes per chamber shift each
 voice by 0 to +4 semitones.
 
 The three tubes are coiled into a compact, symmetric two-piece body,
-about 74 × 41 × 176 mm, that prints without support. Modelled in [luametry](../luametry) (luam + Manifold).
+about 78 × 41 × 178 mm, that prints without support. Modelled in [luametry](../luametry) (luam + Manifold).
 
 ## How it plays
 
@@ -117,23 +117,31 @@ orifice-model estimate. Calibrate it on a real print:
    for corrections from about 26 to 36 mm (the estimate is 31); outside
    that, adjust `row_drop` and rerun `luam layout.lua`.
 
-## Jet speed per chamber
+## Mouthpiece
 
-All three windways share one blowing pressure, but a lower note wants a
-slower jet. Pipe organs solve the same problem by narrowing each pipe's
-foot hole ("toe regulation"). Here the two lower chambers get a narrow
-inlet slit at the lips that opens abruptly into the full-width windway;
-the expansion loses some pressure, so the jet comes out slower.
+One round inlet (8 mm) at the lips feeds all three chambers, so they
+share exactly the same pressure. It ends in a small dome from which a
+round channel runs to each chamber. The last few mm before each window
+taper smoothly from round to a flat 7 × 1.1 mm jet aimed at the labium.
+
+**Jet speed per chamber.** The pressure is shared, but a lower note wants
+a slower jet. Pipe organs solve the same problem by narrowing each pipe's
+foot hole ("toe regulation"). Here each lower chamber's channel starts
+with a short narrow orifice that opens abruptly into the channel; the
+expansion loses some pressure, so that jet comes out slower.
 
 - `jet_match = 1` aims for jet speed in proportion to pitch: G open
-  (4.8 mm), E 2.9 mm (84 % jet speed), C 2.3 mm (67 %).
-- Lower it toward 0 if the low chambers now sound weak or breathy; raise
-  a single chamber with its own `inlet_width` (mm).
-- Only the head changes; the body and its tuning stay valid. A slower jet
-  can flatten a note by a few cents, which calibration picks up.
-- If this isn't enough, the next tool is the cut-up (`window_length`): a
-  longer window suits a slower jet. That changes the window correction,
-  so it needs a new body too.
+  (5 mm), E orifice 3.1 mm (84 % jet speed), C 2.6 mm (67 %).
+- Lower it toward 0 if the low chambers sound weak or breathy; set a
+  single chamber with its own `orifice_d` (mm).
+
+**Arched labium.** Each labium edge is an arc dipping 2.5 mm at its
+centre, like a quena notch or an organ pipe's arched mouth. Printed
+mouth-down it forms a self-supporting arch instead of a flat knife-edge
+bridge. The 7 mm width makes it louder and easier to print cleanly.
+
+Changing the window's size or shape changes the window correction, so a
+new head needs a body computed for it (and a fresh calibration).
 
 ## Tuning slide
 
@@ -147,10 +155,10 @@ it lowers it.
 
 Both parts print **upside down**, with no support:
 
-- Head (about 64 mm): stands on its flat mouth end (26 × 10 mm; add a
-  brim). The windways are vertical channels, the most accurate
-  orientation.
-- Body (about 122 mm): stands on its joint face, collar on the bed.
+- Head (about 61 mm): stands on its flat mouth end (20 × 12 mm; add a
+  brim). The channels rise at no more than 35 degrees and the labium
+  edges print as arches.
+- Body (about 127 mm): stands on its joint face, collar on the bed.
 - Vertical tube runs are round. Every other tube run has a pointed,
   teardrop-shaped roof that faces the foot of the instrument, which is
   "up" on the printer, so the channels print without support. The point

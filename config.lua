@@ -21,27 +21,36 @@ config.wall = 1.6           -- outer wall (also the finger-hole chimney height)
 config.tube_gap = 13.0      -- minimum centre-to-centre distance between tubes
 config.bend_radius = 7.0    -- corner rounding of the tubes
 
--- Fipple (identical in every chamber) ----------------------------------------
-config.windway_width = 4.8   -- narrow, so the three slits span ~19 mm at the lips
-config.windway_height = 1.1
-config.windway_straight = 12.0 -- straight run before the window (keep parallel)
-config.window_length = 3.5     -- windway exit to labium edge
-config.labium_angle = 16.0     -- ramp angle, degrees
-config.beak_length = 24.0      -- mouthpiece taper; keeps its overhang < 45 deg
-config.beak_web = 1.0          -- wall between windways at the lips
-config.tip_width = 26.0        -- flat mouth end (the head prints standing on it)
-config.tip_depth = 10.0
+-- Mouthpiece: one round inlet at the lips feeds all three chambers, so
+-- they share exactly the same pressure. Below it a round channel per
+-- chamber runs down to its window; the last few mm taper smoothly from
+-- round to a flat jet slit aimed at the labium.
+config.inlet_d = 8.0           -- mouth inlet (area > all three jets together)
+config.inlet_length = 8.0      -- straight inlet channel before it branches
+config.duct_d = 5.0            -- round channel to each chamber
+config.duct_angle = 35.0       -- max tilt from vertical (prints without support)
+config.tip_width = 20.0        -- flat mouth end around the inlet (the head
+config.tip_depth = 12.0        -- prints standing on it)
 
--- Jet speed per chamber. All three windways share one blowing pressure, but
--- a lower note wants a slower jet (as organ pipes on one wind chest do).
--- Each lower chamber gets a narrow inlet slit at the lips that opens
--- abruptly into its full-width windway; the expansion loses pressure, so
--- the jet leaves the windway slower. jet_match = 1 aims for jet speed in
--- proportion to pitch, 0 leaves every inlet full width. A chamber's own
--- inlet_width (mm) overrides the computed one. Head-only change: the body
--- and its tuning are unaffected.
+-- Jet and labium (identical in every chamber)
+config.windway_width = 7.0     -- jet / window width; wide = louder, prints cleaner
+config.windway_height = 1.1    -- jet thickness
+config.nozzle_taper = 5.0      -- round channel -> flat slit transition
+config.windway_straight = 6.0  -- flat straight slit before the window
+config.window_length = 2.0     -- jet exit to labium at the window's sides
+config.labium_arc = 2.5        -- labium is an arc (like a quena notch) dipping
+                               -- this far at its centre, so it prints as a
+                               -- self-supporting arch instead of a flat bridge
+config.labium_angle = 16.0     -- ramp angle, degrees
+
+-- Jet speed per chamber. The pressure is shared, but a lower note wants a
+-- slower jet (as organ pipes on one wind chest do). Each lower chamber's
+-- channel starts with a short narrow orifice that opens abruptly into the
+-- channel; the expansion loses pressure, so its jet comes out slower.
+-- jet_match = 1 aims for jet speed in proportion to pitch, 0 leaves every
+-- channel open. A chamber's own orifice_d (mm) overrides the computed one.
 config.jet_match = 1.0
-config.inlet_length = 3.0      -- length of the narrow slit before it opens out
+config.orifice_length = 3.0    -- length of the narrow part before it opens out
 
 -- Finger grid -----------------------------------------------------------------
 -- Two columns (left hand, right hand) x three rows (index, middle, ring),
@@ -54,11 +63,11 @@ config.row_pitch = 18.0     -- vertical spacing between rows
 
 -- Tube routing (see layout.lua) -------------------------------------------
 config.bend_z = -32.0       -- tubes leave the vertical under the windows here
-config.row_drop = 30.0      -- extra drop from bend_z to the top row
+config.row_drop = 35.0      -- extra drop from bend_z to the top row
 config.mid_y = -13.0        -- plane of the traverses between rows and drops
 config.back_y = -32.0       -- flat back face; every tube end opens here
 config.drop_x = { -24.5, -8.5, 4.5 } -- drop column per chamber (top row first)
-config.drop_depth = 10.5    -- E and C drop this far behind mid_y (G's depth is solved)
+config.drop_depth = 10.3    -- E and C drop this far behind mid_y (G's depth is solved)
 
 -- Two-piece build. The joint crosses the three straight drops under the
 -- windows and doubles as a tuning slide: pulling the head out flattens all

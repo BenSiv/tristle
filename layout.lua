@@ -137,6 +137,16 @@ function layout.solve(cfg)
             u = TAIL_RANGE[1]
         end
         p = build(cfg, f, k, s, u)
+        -- a drop set too far back would break through the back face
+        back = cfg.mid_y - cfg.drop_depth
+        if k == 1 then
+            back = cfg.mid_y - s
+        end
+        if back - f.r_out < cfg.back_y + cfg.wall then
+            table.insert(result.problems, string.format(
+                "%s: drop at y = %.1f leaves less than %.1f mm of back wall; raise row_drop",
+                ch.name, back, cfg.wall))
+        end
         ch.h2.pos = path.s_of(p, { -t.hx, 0, t.z })
         ch.h1.pos = ch.h2.pos + t.gap
         result.chambers[k] = {

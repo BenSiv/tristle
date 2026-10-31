@@ -44,6 +44,18 @@ function tuning.speed_of_sound(cfg)
     return (331.3 + 0.606 * cfg.temperature_c) * 1000 -- mm/s
 end
 
+-- Window opening: a rectangle (jet exit to the labium's ends) plus the
+-- circular segment the arched labium adds below it.
+function tuning.window_area(cfg)
+    w, sag = cfg.windway_width, cfg.labium_arc
+    area = w * cfg.window_length
+    if sag > 0 then
+        rr = (w * w / 4 + sag * sag) / (2 * sag)
+        area = area + rr * rr * math.acos((rr - sag) / rr) - (rr - sag) * math.sqrt(2 * rr * sag - sag * sag)
+    end
+    return area
+end
+
 -- Orifice estimate of the window end correction: the window is a short
 -- neck of area Sw in a wall of thickness `wall`, seen from a bore of area Sb.
 function tuning.window_correction(cfg)
@@ -51,7 +63,7 @@ function tuning.window_correction(cfg)
         return cfg.window_correction
     end
     sb = math.pi * (cfg.bore / 2) ^ 2
-    sw = cfg.windway_width * cfg.window_length
+    sw = tuning.window_area(cfg)
     a = math.sqrt(sw / math.pi)
     return sb / sw * (cfg.wall + 1.7 * a)
 end
@@ -260,13 +272,15 @@ function tuning.design(cfg)
     return result
 end
 
--- Inlet slit per chamber. A slit of width w opening abruptly into a
--- windway of width W (same height) loses the Borda-Carnot head
--- (v_slit - v_jet)^2 / 2, so p = rho/2 * v_jet^2 * (1 + (W/w - 1)^2):
--- the jet slows by 1 / sqrt(1 + (W/w - 1)^2) against an open slit. The
--- highest chamber stays open; the others are narrowed toward
--- speed ratio (f / f_highest) ^ jet_match.
-function tuning.inlets(cfg)
+-- Orifice per chamber channel. Flow Q leaves the jet slit (area Ae) at
+-- v_jet; upstream it passes an orifice (Ao) that opens abruptly into the
+-- channel (Ad), losing the Borda-Carnot head (v_o - v_d)^2 / 2. With the
+-- smooth nozzle lossless, p = rho/2 * v_jet^2 * (1 + (Ae/Ao - Ae/Ad)^2).
+-- The highest chamber stays open; the others are narrowed toward speed
+-- ratio (f / f_highest) ^ jet_match.
+function tuning.orifices(cfg)
+    ae = cfg.windway_width * cfg.windway_height
+    ad = math.pi * cfg.duct_d * cfg.duct_d / 4
     f_top = 0
     for _, ch in ipairs(cfg.chambers) do
         f_top = math.max(f_top, tuning.note_freq(cfg, tuning.midi(ch.root)))
@@ -275,13 +289,15 @@ function tuning.inlets(cfg)
     for _, ch in ipairs(cfg.chambers) do
         f = tuning.note_freq(cfg, tuning.midi(ch.root))
         ratio = (f / f_top) ^ cfg.jet_match
-        w = cfg.windway_width / (1 + math.sqrt(1 / (ratio * ratio) - 1))
-        if ch.inlet_width != nil then
-            w = ch.inlet_width
+        ao = ae / (ae / ad + math.sqrt(1 / (ratio * ratio) - 1))
+        d = math.min(cfg.duct_d, math.sqrt(4 * ao / math.pi))
+        if ch.orifice_d != nil then
+            d = ch.orifice_d
         end
-        a = cfg.windway_width / w
-        speed = 1 / math.sqrt(1 + (a - 1) * (a - 1))
-        table.insert(out, { name = ch.name, width = w, speed = speed })
+        ao = math.pi * d * d / 4
+        speed = 1 / math.sqrt(1 + (ae / ao - ae / ad) ^ 2)
+        open = 1 / math.sqrt(1 + (ae / ad - ae / ad) ^ 2)
+        table.insert(out, { name = ch.name, d = d, speed = speed / open })
     end
     return out
 end
@@ -384,11 +400,11 @@ function tuning.report(design, cfg)
     end
     add("")
     parts = {}
-    for _, inl in ipairs(tuning.inlets(cfg)) do
-        table.insert(parts, string.format("%s %.2f mm (jet %.0f %%)", inl.name, inl.width, 100 * inl.speed))
+    for _, o in ipairs(tuning.orifices(cfg)) do
+        table.insert(parts, string.format("%s %.2f mm (jet %.0f %%)", o.name, o.d, 100 * o.speed))
     end
-    add(string.format("Mouth inlets (windway %.1f mm, jet_match %.2f): %s",
-        cfg.windway_width, cfg.jet_match, table.concat(parts, "   ")))
+    add(string.format("Channel orifices (channel %.1f mm, jet_match %.2f): %s",
+        cfg.duct_d, cfg.jet_match, table.concat(parts, "   ")))
     add("")
     add("Fingering per chamber (upper hole first): ●● root  ●◐ +1  ●○ +2  ◐○ +3  ○○ +4")
     add("")
