@@ -5,15 +5,17 @@
 -- Every tube opens on the flat back face. Geometry comes from config.lua,
 -- tube routes from layout.lua, hole sizes from tuning.lua.
 --
--- Built to print upside down without support: vertical tubes are round,
--- every other tube run has a pointed (teardrop) roof facing the foot,
--- which is "up" on the printer.
+-- Built to print without support: the body lies on its flat front face
+-- (holes down) and its channels that run across the bed have a raised
+-- roof on the back side, "up" on the printer; the head stands upright on
+-- its joint face, mouth up, where its channels are vertical or steep.
 --
 --   ./export.sh                          -> out/head.stl, out/body.stl, ... (one file per part)
 --   luametry run tristle.lua             -> out/tristle.stl (both parts, print layout)
 --   TRISTLE_PART=head|body ...           one part only, in print orientation
 --   TRISTLE_VIEW=assembled luametry run tristle.lua -o out/assembled.stl
 --   TRISTLE_VIEW=air       ...  just the air inside (bores, windways): shows the coil
+--   TRISTLE_VIEW=fit       ...  prints the head/body overlap volume (should be 0)
 --   TRISTLE_VIEW=calibrate ...  print layout without finger holes; measure
 --                               the roots, then `luam tuning.lua calibrate`
 --
@@ -59,13 +61,20 @@ branch_x = inlet_r - duct_r + 0.5  -- side channels start inside the inlet
 branch_z = duct_end + (side_x - branch_x) / math.tan(math.rad(cfg.duct_angle))
 head_top = branch_z + cfg.inlet_length
 inlet_y = duct_y - 1.5 -- a little further back than the channels: keeps the front wall
-tip_y = inlet_y
+tip_y = r_out - cfg.tip_depth / 2 -- mouth end flush with the front face
 
 joint_z = cfg.joint_z
 joint_len = cfg.joint_length
 tenon_r = r + cfg.joint_wall
 socket_r = tenon_r + cfg.joint_clearance
 collar_r = socket_r + 1.6
+tip_z = joint_z + joint_len
+
+-- Raised roof for body channels: a second, smaller sphere set back toward
+-- -y (up when the body lies on its front) whose tangents meet the round
+-- bore at 45 degrees; the roof rises print_roof above the round bore.
+cap_q = r - cfg.print_roof / (math.sqrt(2) - 1)
+cap_h = math.sqrt(2) * (r - cap_q)
 
 function box(x0, x1, y0, y1, z0, z1)
     return cad.translate(cad.cube({ size = { x1 - x0, y1 - y0, z1 - z0 } }), { x0, y0, z0 })
@@ -80,11 +89,15 @@ function ball(p, radius)
     return cad.translate(cad.sphere({ r = radius, segments = 24 }), p)
 end
 
--- Sphere with a 45-degree point below it: swept horizontally it gives a
--- teardrop channel whose roof prints without support when inverted.
-function tear(p, radius)
-    tipp = { p[1], p[2], p[3] - radius * math.sqrt(2) }
-    return { ball(p, radius), ball(tipp, 0.2) }
+-- A sphere, or (roofed) a sphere plus its raised roof: swept along a tube
+-- it gives a channel that prints without support lying on the body's front.
+-- `radius` may be the bore or its outer shell; the roof keeps the same
+-- 45-degree tangents either way.
+function roofed(p, radius, with_roof)
+    if with_roof != true then
+        return { ball(p, radius) }
+    end
+    return { ball(p, radius), ball({ p[1], p[2] - cap_h, p[3] }, radius - (r - cap_q)) }
 end
 
 -- Path samples worth keeping: ends and every change of direction.
@@ -102,27 +115,29 @@ function keypoints(p)
     return out
 end
 
--- Swept bore: hull of teardrops between consecutive keypoints.
-function bore_pipe(pts)
+-- Swept bore: hull of (roofed) spheres between consecutive keypoints.
+function bore_pipe(pts, with_roof)
     parts = {}
     for i = 2, #pts do
-        a = tear(pts[i - 1], r)
-        b = tear(pts[i], r)
-        table.insert(parts, cad.hull({ a[1], a[2], b[1], b[2] }))
+        pieces = roofed(pts[i - 1], r, with_roof)
+        for _, b in ipairs(roofed(pts[i], r, with_roof)) do
+            table.insert(pieces, b)
+        end
+        table.insert(parts, cad.hull(pieces))
     end
     return cad.union(parts)
 end
 
 -- Solid outline: convex hull of every tube's outer surface and its mirror
 -- image (so the outside is symmetric) plus the mouth end, cut flat at the
--- back face where the tubes open. The outer surface is teardrop-shaped
--- like the bores, so their pointed roofs stay covered.
+-- back face where the tubes open. In the body the shell carries the same
+-- raised roof as the bores, so every roof keeps its wall.
 function outer()
     parts = {}
     for _, c in ipairs(routes.chambers) do
         for _, p in ipairs(keypoints(c.path)) do
             for _, q in ipairs({ p, { -p[1], p[2], p[3] } }) do
-                for _, piece in ipairs(tear(q, r_out)) do
+                for _, piece in ipairs(roofed(q, r_out, q[3] < joint_z)) do
                     table.insert(parts, piece)
                 end
             end
@@ -131,7 +146,8 @@ function outer()
     half = (cfg.tip_width - cfg.tip_depth) / 2
     table.insert(parts, rod(-half, tip_y, cfg.tip_depth / 2, head_top - 0.01, head_top))
     table.insert(parts, rod(half, tip_y, cfg.tip_depth / 2, head_top - 0.01, head_top))
-    return cad.intersection({ cad.hull(parts), box(-500, 500, cfg.back_y, 500, -500, 500) })
+    -- flat back (tube exits) and exactly flat front (the body prints on it)
+    return cad.intersection({ cad.hull(parts), box(-500, 500, cfg.back_y, r_out, -500, 500) })
 end
 
 -- Labium edge height across the window: a circular arc through the
@@ -215,12 +231,13 @@ function finger_holes()
     return cuts
 end
 
--- Everything air: bores, fipples and (unless calibrating) finger holes.
-function air(with_holes)
+-- Everything air: bores (roofed for the body), fipples and (unless
+-- calibrating) finger holes.
+function air(with_holes, with_roof)
     cuts = {}
     for k, c in ipairs(routes.chambers) do
         x = cfg.chambers[k].window_x
-        table.insert(cuts, bore_pipe(keypoints(c.path)))
+        table.insert(cuts, bore_pipe(keypoints(c.path), with_roof))
         table.insert(cuts, rod(x, 0, r, -1, cfg.window_length))
         -- flatten the bore roof under the window so the labium edge is sharp
         table.insert(cuts, box(x - ww / 2, x + ww / 2, 0, r, -(sag + ramp_len + 2), cfg.window_length))
@@ -242,50 +259,78 @@ function air(with_holes)
     return cad.union(cuts)
 end
 
--- Hull of one rod per window, clipped to [z0, z1] (tenon, socket, collar).
-function bundle(radius, z0, z1)
-    rods = {}
+-- Joint cross-section: one roofed tube of `radius` around each window
+-- bore, merged, extruded over [z0, z1].
+function joint_profile(radius, z0, z1)
+    parts = {}
     for _, ch in ipairs(cfg.chambers) do
-        table.insert(rods, rod(ch.window_x, 0, radius, z0, z1))
+        x = ch.window_x
+        table.insert(parts, cad.hull({
+            rod(x, 0, radius, z0, z1),
+            rod(x, -cap_h, radius - (r - cap_q), z0, z1),
+        }))
     end
-    return cad.hull(rods)
+    return cad.union(parts)
+end
+
+-- 45-degree cones around each bore, narrowing to r + joint_tip_wall (+
+-- extra) at z = top: the tenon tip chamfer, and the socket's inner end.
+function tip_cones(extra, top)
+    depth = 20
+    parts = {}
+    for _, ch in ipairs(cfg.chambers) do
+        top_r = r + cfg.joint_tip_wall + extra
+        c = cad.cylinder({ r1 = top_r + depth, r2 = top_r, h = depth, segments = FN })
+        table.insert(parts, cad.translate(c, { ch.window_x, 0, top - depth }))
+    end
+    return cad.union(parts)
 end
 
 function build(with_holes)
     shell = outer()
-    holes = air(with_holes)
     far = 1000
+    clr = cfg.joint_clearance
+    tenon = cad.intersection({ joint_profile(tenon_r, joint_z - 0.01, tip_z), tip_cones(0, tip_z) })
+    socket = cad.intersection({
+        joint_profile(socket_r, joint_z - 1, tip_z + 0.5),
+        tip_cones(clr, tip_z + 0.5),
+    })
     head = cad.union({
         cad.intersection({ shell, box(-far, far, -far, far, joint_z, far) }),
-        bundle(tenon_r, joint_z - joint_len, joint_z + 0.01),
+        cad.hull({ joint_profile(collar_r, joint_z, tip_z + 2.5) }),
     })
     body = cad.union({
         cad.intersection({ shell, box(-far, far, -far, far, -far, joint_z) }),
-        bundle(collar_r, joint_z - joint_len - 3, joint_z),
+        tenon,
     })
-    head = cad.difference({ head, holes })
-    body = cad.difference({ body, bundle(socket_r, joint_z - joint_len - 0.5, joint_z + 1), holes })
+    head = cad.difference({ head, socket, air(false, false) })
+    body = cad.difference({ body, air(with_holes, true) })
     return head, body
 end
 
 view = os.getenv("TRISTLE_VIEW")
 if view == "air" then
-    return air(true)
+    return air(true, true)
 end
 head, body = build(view != "calibrate")
 
 if view == "assembled" then
     return cad.union({ head, body })
 end
--- Print layout (default and calibrate): both parts upside down. The head
--- stands on its flat mouth end, the body on its joint face (collar on the
--- bed); every non-vertical channel then has its pointed roof on top.
-head_print = cad.translate(cad.rotate(head, { 180, 0, 0 }), { 0, 0, head_top })
-body_print = cad.translate(cad.rotate(body, { 180, 0, 0 }), { 0, 0, joint_z })
+if view == "fit" then -- head/body overlap; should be empty
+    overlap = cad.intersection({ head, body })
+    print(string.format("head/body overlap: %.3f mm3", cad.query.volume(overlap)))
+    return cad.union({ overlap, box(0, 0.1, 0, 0.1, 0, 0.1) })
+end
+-- Print layout (default and calibrate). Head: upright on its joint face,
+-- mouth up. Body: flat on its front face (holes on the bed), rotated so
+-- the front (+y) points down.
+head_print = cad.translate(head, { 0, 0, -joint_z })
+body_print = cad.translate(cad.rotate(body, { -90, 0, 0 }), { 0, 0, r_out })
 part = os.getenv("TRISTLE_PART")
 if part == "head" then
     return head_print
 elseif part == "body" then
     return body_print
 end
-return cad.union({ head_print, cad.translate(body_print, { 0, 70, 0 }) })
+return cad.union({ head_print, cad.translate(body_print, { 0, 120, 0 }) })

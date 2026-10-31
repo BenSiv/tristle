@@ -142,7 +142,7 @@ function layout.solve(cfg)
         if k == 1 then
             back = cfg.mid_y - s
         end
-        if back - f.r_out < cfg.back_y + cfg.wall then
+        if back - f.r - cfg.print_roof - cfg.wall < cfg.back_y then
             table.insert(result.problems, string.format(
                 "%s: drop at y = %.1f leaves less than %.1f mm of back wall; raise row_drop",
                 ch.name, back, cfg.wall))

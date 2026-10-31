@@ -71,11 +71,21 @@ config.drop_depth = 10.3    -- E and C drop this far behind mid_y (G's depth is 
 
 -- Two-piece build. The joint crosses the three straight drops under the
 -- windows and doubles as a tuning slide: pulling the head out flattens all
--- three chambers together. Both parts print upside down.
-config.joint_z = -15.0        -- head/body split plane (below the labium ramps)
-config.joint_length = 9.0     -- tenon length (must end above bend_z + bend_radius)
+-- three chambers together. The tenon is on the body, the socket in the
+-- head; the tenon tip is chamfered 45 degrees so the socket's inner end
+-- prints as cones instead of a flat ceiling.
+config.joint_z = -24.5        -- head/body split plane; socket stays below the labium ramps
+config.joint_length = 9.0     -- tenon length (above the joint, into the head)
 config.joint_wall = 1.6       -- tenon wall around each bore
+config.joint_tip_wall = 0.8   -- tenon wall left at the chamfered tip
 config.joint_clearance = 0.15 -- radial; tune to your printer for a snug slip fit
+
+-- Print orientation. Body: flat on its front face (holes on the bed),
+-- so channels running across the bed get a raised roof on their back
+-- side, which is "up" on the printer. Head: upright, standing on its
+-- joint face, mouth up; its channels are vertical or tilted at most
+-- duct_angle, so they stay round.
+config.print_roof = 0.8       -- how far a body channel's roof rises above round
 
 -- Finger holes ----------------------------------------------------------------
 config.hole_min = 3.5

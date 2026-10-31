@@ -153,20 +153,25 @@ it lowers it.
 
 ## Printing
 
-Both parts print **upside down**, with no support:
+Each part prints in the orientation that suits it, with no support:
 
-- Head (about 61 mm): stands on its flat mouth end (20 × 12 mm; add a
-  brim). The channels rise at no more than 35 degrees and the labium
-  edges print as arches.
-- Body (about 127 mm): stands on its joint face, collar on the bed.
-- Vertical tube runs are round. Every other tube run has a pointed,
-  teardrop-shaped roof that faces the foot of the instrument, which is
-  "up" on the printer, so the channels print without support. The point
-  adds about 7 % cross-section on those runs, which doesn't measurably
-  change the pitch. The outer shell follows the same teardrop shape, so
-  every pointed roof keeps at least 2 mm of wall.
-- Use a 0.4 mm nozzle and layers of 0.12 mm or less in the head. The
-  labium edges need to be as sharp as the printer allows.
+- **Body (78 × 123 × 39 mm): flat on its front face**, finger holes on
+  the bed. The front is completely flat (about 3600 mm² of contact) and
+  the joint tenon lies on the bed with it. Channels that run across the
+  bed have a raised roof on their back side ("up" on the printer, rising
+  `print_roof` = 0.8 mm with 45-degree flanks); channels running up
+  through the part stay round. Holes on the bed can come out a little
+  small from first-layer squish; open them up to size when fine-tuning.
+- **Head (58 × 36 × 61 mm): upright on its joint face**, mouth up. That
+  face is the full cross-section with the socket recessed into it (about
+  1450 mm² of contact). The channels are vertical or tilted at most 35
+  degrees, the jet slits are vertical (their most accurate orientation),
+  and the arched labium edges have material under them.
+- **Joint:** the tenon is on the body and the socket in the head. The
+  tenon tip is chamfered at 45 degrees around each bore, so the socket's
+  inner end prints as cones instead of a flat ceiling.
+  `TRISTLE_VIEW=fit` reports any head/body overlap (should be 0).
+- Use a 0.4 mm nozzle and layers of 0.12 mm or less in the head.
 - `joint_clearance` sets the slip fit. Print a test joint first if your
   printer runs tight or loose.
 
