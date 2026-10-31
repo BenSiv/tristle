@@ -16,6 +16,8 @@
 --   TRISTLE_VIEW=assembled luametry run tristle.lua -o out/assembled.stl
 --   TRISTLE_VIEW=air       ...  just the air inside (bores, windways): shows the coil
 --   TRISTLE_VIEW=fit       ...  prints the head/body overlap volume (should be 0)
+--   TRISTLE_VIEW=head_shell|head_air|body_shell|body_air  outline and cavities
+--                               separately, for wall-thickness checks
 --   TRISTLE_VIEW=calibrate ...  print layout without finger holes; measure
 --                               the roots, then `luam tuning.lua calibrate`
 --
@@ -195,15 +197,21 @@ function capsule(a, b, radius)
     return cad.hull({ ball(a, radius), ball(b, radius) })
 end
 
+-- Channel ends for the chamber whose window is at x: inside the inlet,
+-- and at the top of its round-to-flat taper.
+function duct_ends(x)
+    a = { 0, inlet_y, branch_z }
+    if x != 0 then
+        a = { x / math.abs(x) * branch_x, inlet_y, branch_z }
+    end
+    return a, { x, duct_y, duct_end }
+end
+
 -- Air path from the shared inlet to chamber k's jet slit: round channel
 -- (starting with this chamber's orifice), smooth taper to the flat slit.
 function mouth_air(k, x)
     cuts = {}
-    start = { 0, inlet_y, branch_z }
-    if x != 0 then
-        start = { x / math.abs(x) * branch_x, inlet_y, branch_z }
-    end
-    stop = { x, duct_y, duct_end }
+    start, stop = duct_ends(x)
     dir = path.unit(path.sub(stop, start))
     od = orifices[k].d
     -- the orifice runs from inside the inlet to orifice_length past its wall
@@ -216,6 +224,33 @@ function mouth_air(k, x)
     }))
     table.insert(cuts, box(x - ww / 2, x + ww / 2, r - wh / 2, r + wh / 2, cfg.window_length - 0.01, slit_top))
     return cuts
+end
+
+-- Solid around every mouthpiece passage (jet slits, tapers, channels,
+-- inlet) with a full wall, added to the outline so the outer chambers'
+-- wide slits can't break through the head's rounded corners.
+function mouth_shell()
+    t = cfg.wall
+    parts = {}
+    for _, ch in ipairs(cfg.chambers) do
+        x = ch.window_x
+        a, b = duct_ends(x)
+        table.insert(parts, box(x - ww / 2 - t, x + ww / 2 + t, r - wh / 2 - t, r_out,
+            -(sag + ramp_len), slit_top))
+        table.insert(parts, cad.hull({ ball(a, duct_r + t), ball(b, duct_r + t),
+            box(x - ww / 2 - t, x + ww / 2 + t, r - wh / 2 - t, r + wh / 2 + t, slit_top - 0.01, slit_top) }))
+    end
+    table.insert(parts, rod(0, inlet_y, inlet_r + t, branch_z, head_top))
+    shell = cad.intersection({ cad.union(parts), box(-500, 500, cfg.back_y, r_out, cfg.joint_z, head_top) })
+    -- the slit sits just under the front face: thicken the front over it
+    -- (above the window only, so the labium is unchanged)
+    roofs = {}
+    for _, ch in ipairs(cfg.chambers) do
+        x = ch.window_x
+        table.insert(roofs, box(x - ww / 2 - t, x + ww / 2 + t, r, r + wh / 2 + t,
+            cfg.window_length, duct_end))
+    end
+    return cad.union({ shell, cad.hull(roofs) })
 end
 
 function finger_holes()
@@ -297,6 +332,7 @@ function build(with_holes)
     })
     head = cad.union({
         cad.intersection({ shell, box(-far, far, -far, far, joint_z, far) }),
+        mouth_shell(),
         cad.hull({ joint_profile(collar_r, joint_z, tip_z + 2.5) }),
     })
     body = cad.union({
@@ -311,6 +347,21 @@ end
 view = os.getenv("TRISTLE_VIEW")
 if view == "air" then
     return air(true, true)
+end
+if view == "head_shell" then -- head outline (no cavities), for wall checks
+    return cad.union({
+        cad.intersection({ outer(), box(-1000, 1000, -1000, 1000, cfg.joint_z, 1000) }),
+        mouth_shell(),
+    })
+end
+if view == "head_air" then
+    return air(false, false)
+end
+if view == "body_shell" then -- body outline (no cavities), for wall checks
+    return cad.intersection({ outer(), box(-1000, 1000, -1000, 1000, -1000, cfg.joint_z) })
+end
+if view == "body_air" then -- without finger holes (those open on purpose)
+    return cad.intersection({ air(false, true), box(-1000, 1000, -1000, 1000, -1000, cfg.joint_z) })
 end
 head, body = build(view != "calibrate")
 
